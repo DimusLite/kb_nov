@@ -44,9 +44,6 @@ def telegram_bot(TOKEN):
             answer += f'{changes}\n'
             answer += '\n'
             answer += 'Обновляемся *вечером после закрытия* или при наличии свободного времени'
-
-            #answer = f'Ver: {version}\nDate: {date}\nChanges: {changes}'
-            #answer = message.text
         else:
             answer = 'хз'
         bot.send_message(message.chat.id, answer)
