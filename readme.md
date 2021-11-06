@@ -1,3 +1,3 @@
-# git
+# kb_nov
 
-crash course for git
+telegram bot for kb novgorod team
