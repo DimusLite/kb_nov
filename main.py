@@ -48,7 +48,7 @@ def telegram_bot(TOKEN):
             answer = 'хз'
         bot.send_message(message.chat.id, answer)
 
-    bot.polling()
+    bot.infinity_polling()
 
 if __name__ == '__main__':
     telegram_bot(TOKEN)
