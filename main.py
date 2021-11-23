@@ -88,6 +88,7 @@ def telegram_bot(TOKEN):
     def send_help_msg(msg):
         help_msg = "/cfg - blank config message\n\
 /shifts - nearest shifts schedule\n\
+/shifts dd.mm.yy - nearest to dd.mm.yy shifts\n\
 "
         bot.send_message(msg.chat.id, help_msg)
 
@@ -104,16 +105,15 @@ def telegram_bot(TOKEN):
 
     @bot.message_handler(commands=['shifts'])
     def send_shifts_schedule(msg):
-        # date = datetime.now().strftime("%d.%m.%Y")
         data = get_shifts_data(SHIFTS_FILE)
         data.sort(key=lambda x: x['date'])
         date = datetime.now()
         if len(msg.text.split()) > 1:
             params = msg.text.split()[1]
             try:
-                date = datetime.strptime(params, "%d.%m.%Y")
+                date = datetime.strptime(params, "%d.%m.%y")
             except:
-                bot.send_message(msg.chat.id,'Wrong date, try dd.mm.yyyy format')
+                bot.send_message(msg.chat.id,'Wrong date, try dd.mm.yy format')
         bot.send_message(msg.chat.id, get_nearest_shifts(data, date), parse_mode="HTML")
 
 
