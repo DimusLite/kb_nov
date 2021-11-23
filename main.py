@@ -61,6 +61,7 @@ def get_nearest_shifts(data, date):
             continue  # exclude all days passed or future more 1 week
 
         nearest_shifts += f"<{mark}>{day['date']:%d.%m %a}  {day['watcher']}</{mark}>\n"
+
     return nearest_shifts
 
 
@@ -114,7 +115,10 @@ def telegram_bot(TOKEN):
                 date = datetime.strptime(params, "%d.%m.%y")
             except:
                 bot.send_message(msg.chat.id,'Wrong date, try dd.mm.yy format')
-        bot.send_message(msg.chat.id, get_nearest_shifts(data, date), parse_mode="HTML")
+        nearest_shifts = get_nearest_shifts(data, date)
+        if nearest_shifts == "":
+            nearest_shifts = "There are no data in the date you specified"
+        bot.send_message(msg.chat.id, nearest_shifts, parse_mode="HTML")
 
 
     @bot.message_handler(content_types=['text'])
