@@ -45,15 +45,18 @@ def get_shifts_data(file):
 
 
 def get_nearest_shifts(data, date):
+    NEAREST = range(-7, 14)
     nearest_shifts = ""
     for day in data:
-        delta = day['date'] - date
-        if -7 <= delta.days < 0:
-            mark = 'del'
-        elif 0 <= delta.days < 7:
-            mark = 'strong'
-        elif 7 <= delta.days < 14:
-            mark = 'a'
+        delta_now = day['date'] - datetime.now()
+        delta_date = day['date'] - date
+        if delta_date.days in NEAREST:
+            if delta_now.days < 0:
+                mark = 'del'
+            elif delta_now.days < 7:
+                mark = 'strong'
+            else:
+                mark = 'a'
         else:
             continue  # exclude all days passed or future more 1 week
 
@@ -104,7 +107,14 @@ def telegram_bot(TOKEN):
         # date = datetime.now().strftime("%d.%m.%Y")
         data = get_shifts_data(SHIFTS_FILE)
         data.sort(key=lambda x: x['date'])
-        bot.send_message(msg.chat.id, get_nearest_shifts(data, datetime.now()), parse_mode="HTML")
+        date = datetime.now()
+        if len(msg.text.split()) > 1:
+            params = msg.text.split()[1]
+            try:
+                date = datetime.strptime(params, "%d.%m.%Y")
+            except:
+                bot.send_message(msg.chat.id,'Wrong date, try dd.mm.yyyy format')
+        bot.send_message(msg.chat.id, get_nearest_shifts(data, date), parse_mode="HTML")
 
 
     @bot.message_handler(content_types=['text'])
