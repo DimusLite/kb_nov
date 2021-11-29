@@ -113,6 +113,7 @@ def telegram_bot(TOKEN):
         help_msg = "/cfg - blank config message\n\
 /shifts - nearest shifts schedule\n\
 /shifts dd.mm.yy - nearest to dd.mm.yy shifts\n\
+/swap dd.mm.yy dd.mm.yy - swap shifts\n\
 "
         bot.send_message(msg.chat.id, help_msg)
 
