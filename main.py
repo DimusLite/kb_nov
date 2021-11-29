@@ -79,11 +79,12 @@ def swap_shifts(data, date1, date2):
             watcher1 = day['watcher']
         if day['date'] == date2:
             watcher2 = day['watcher']
-    for day in data:
-        if day['date'] == date1:
-            day['watcher'] = watcher2
-        if day['date'] == date2:
-            day['watcher'] = watcher1
+    if watcher1 != 'error' and watcher2 != 'error':
+        for day in data:
+            if day['date'] == date1:
+                day['watcher'] = watcher2
+            if day['date'] == date2:
+                day['watcher'] = watcher1
     return data
 
 
