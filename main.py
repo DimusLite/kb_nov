@@ -44,6 +44,13 @@ def get_shifts_data(file):
     return data
 
 
+def put_shifts_data(data):
+    for day in data:
+        day['date'] = datetime.strftime(day['date'], "%d.%m.%Y")
+    with open('shifts.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4, ensure_ascii=False)
+
+
 def get_nearest_shifts(data, date):
     NEAREST = range(-7, 14)
     nearest_shifts = ""
@@ -63,6 +70,20 @@ def get_nearest_shifts(data, date):
         nearest_shifts += f"<{mark}>{day['date']:%d.%m %a}  {day['watcher']}</{mark}>\n"
 
     return nearest_shifts
+
+
+def swap_shifts(data, date1, date2):
+    for day in data:
+        if day['date'] == date1:
+            watcher1 = day['watcher']
+        if day['date'] == date2:
+            watcher2 = day['watcher']
+    for day in data:
+        if day['date'] == date1:
+            day['watcher'] = watcher2
+        if day['date'] == date2:
+            day['watcher'] = watcher1
+    return data
 
 
 def get_ETH_price():
@@ -109,16 +130,37 @@ def telegram_bot(TOKEN):
         data = get_shifts_data(SHIFTS_FILE)
         data.sort(key=lambda x: x['date'])
         date = datetime.now()
-        if len(msg.text.split()) > 1:
-            params = msg.text.split()[1]
+        params = msg.text.split()[1:]
+        if len(params) == 1:
             try:
-                date = datetime.strptime(params, "%d.%m.%y")
+                date = datetime.strptime(params[0], "%d.%m.%y")
             except:
                 bot.send_message(msg.chat.id,'Wrong date, try dd.mm.yy format')
         nearest_shifts = get_nearest_shifts(data, date)
         if nearest_shifts == "":
             nearest_shifts = "There are no data in the date you specified"
         bot.send_message(msg.chat.id, nearest_shifts, parse_mode="HTML")
+
+
+    @bot.message_handler(commands=['swap'])
+    def swap(msg):
+        data = get_shifts_data(SHIFTS_FILE)
+        data1, data2 = None, None
+        params = msg.text.split()[1:]
+        if len(params) == 2:
+            try:
+                date1 = datetime.strptime(params[0], "%d.%m.%y")
+                date2 = datetime.strptime(params[1], "%d.%m.%y")
+                print(date1, date2)
+            except:
+                bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
+        else:
+            bot.send_message(msg.chat.id, 'Two dates must be specified: /swap_shifts dd.mm.yy dd.mm.yy')
+        if date1 and date2:
+            data = swap_shifts(data, date1, date2)
+            shifts_to_output = get_nearest_shifts(data, date1)
+            put_shifts_data(data)
+            bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
 
 
     @bot.message_handler(content_types=['text'])
@@ -129,8 +171,6 @@ def telegram_bot(TOKEN):
         elif 'новая версия конфигурации' in msg.text.lower():
             data = parse_cfg_msg(msg.text)
             answer = compose_cfg_msg(data)
-        # else:
-        #     print(msg.text)
         if answer:
             bot.send_message(msg.chat.id, answer)
 
