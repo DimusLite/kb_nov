@@ -73,6 +73,7 @@ def get_nearest_shifts(data, date):
 
 
 def swap_shifts(data, date1, date2):
+    watcher1, watcher2 = 'error'
     for day in data:
         if day['date'] == date1:
             watcher1 = day['watcher']
