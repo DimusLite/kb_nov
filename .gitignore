@@ -3,3 +3,4 @@
 cfg_text_example.txt
 parse_cfg_text.py
 compose_shifts_schedule.py
+scrap_rdp.py

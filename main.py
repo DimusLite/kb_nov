@@ -4,6 +4,7 @@ from os import environ
 
 TOKEN = environ.get('kb_nov_token')
 SHIFTS_FILE = 'shifts.json'
+SHOPS_FILE = 'shops.json'
 
 def parse_cfg_msg(text):
     match = re.search(r'v\.?\s{1,3}(\d{1,2}\.\d{1,4})', text)  # v. 9.123
@@ -24,6 +25,11 @@ def parse_cfg_msg(text):
     return data
 
 
+def parse_outdated_msg(text):
+    shops_nums = re.findall(r'№(\d{4,5})', text)
+    return shops_nums
+
+
 def compose_cfg_msg(data):
     answer = f'\
 ⚠️📒 Новая версия конфигурации 1с *v{data["version"]}* от *{data["date"]}*\n\
@@ -33,6 +39,15 @@ _Перечень изменений:_\n\
 \n\
 Обновляемся *вечером после закрытия* или при наличии свободного времени'
     return answer
+
+
+def compose_outdated_msg(codes, shops):
+    msg = "Магазины с необновленной конфигурацией:\n"
+    for code in codes:
+        for shop in shops:
+            if shop['Code'] == code:
+                msg += f"{code} {shop['City']} {shop['Address']} +{shop['Tel']}\n"
+    return msg
 
 
 def get_shifts_data(file):
@@ -49,6 +64,12 @@ def put_shifts_data(data):
         day['date'] = datetime.strftime(day['date'], "%d.%m.%Y")
     with open('shifts.json', 'w') as json_file:
         json.dump(data, json_file, indent=4, ensure_ascii=False)
+
+
+def get_shops(file):
+    with open(file, 'r') as json_file:
+        data = json.load(json_file)
+    return data
 
 
 def get_nearest_shifts(data, date):
@@ -148,13 +169,12 @@ def telegram_bot(TOKEN):
     @bot.message_handler(commands=['swap'])
     def swap(msg):
         data = get_shifts_data(SHIFTS_FILE)
-        data1, data2 = None, None
+        date1, date2 = None, None
         params = msg.text.split()[1:]
         if len(params) == 2:
             try:
                 date1 = datetime.strptime(params[0], "%d.%m.%y")
                 date2 = datetime.strptime(params[1], "%d.%m.%y")
-                print(date1, date2)
             except:
                 bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
         else:
@@ -172,8 +192,12 @@ def telegram_bot(TOKEN):
         if msg.text.lower() == 'price':
             answer = get_ETH_price()
         elif 'новая версия конфигурации' in msg.text.lower():
-            data = parse_cfg_msg(msg.text)
-            answer = compose_cfg_msg(data)
+            new_cfg_msg_data = parse_cfg_msg(msg.text)
+            answer = compose_cfg_msg(new_cfg_msg_data)
+        elif 'Неактуальная версия конф. 1С!' in msg.text:
+            outdated_shopes_codes = parse_outdated_msg(msg.text)
+            shops = get_shops(SHOPS_FILE)
+            answer = compose_outdated_msg(outdated_shopes_codes, shops)
         if answer:
             bot.send_message(msg.chat.id, answer)
 
