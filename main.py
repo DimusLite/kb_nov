@@ -2,7 +2,7 @@ import requests, telebot, re, json
 from datetime import datetime
 from os import environ
 
-TOKEN = environ.get('kb_nov_token')
+TOKEN = environ.get('kb_nov_token', 'NOT_FOUND')
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
 
@@ -195,9 +195,9 @@ def telegram_bot(TOKEN):
             new_cfg_msg_data = parse_cfg_msg(msg.text)
             answer = compose_cfg_msg(new_cfg_msg_data)
         elif 'Неактуальная версия конф. 1С!' in msg.text:
-            outdated_shopes_codes = parse_outdated_msg(msg.text)
+            outdated_shops = parse_outdated_msg(msg.text)
             shops = get_shops(SHOPS_FILE)
-            answer = compose_outdated_msg(outdated_shopes_codes, shops)
+            answer = compose_outdated_msg(outdated_shops, shops)
         if answer:
             bot.send_message(msg.chat.id, answer)
 
