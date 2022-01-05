@@ -5,8 +5,11 @@ from os import environ
 TOKEN = environ.get('kb_nov_token', 'NOT_FOUND')
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
+LOG_FILE = 'log.txt'
 
 def parse_cfg_msg(text):
+    text = text.replace('​', '') #clear message from ZWSP
+    add_to_log(text, 'ZWSP cleared')
     match = re.search(r'v\.?\s{1,3}(\d{1,2}\.\d{1,4})', text)  # v. 9.123
     version = match.group(1) if match else "Not found"
 
@@ -120,6 +123,13 @@ def get_ETH_price():
         return "ошибка"
 
 
+def add_to_log(msg, event):
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_msg = f'{current_time} - {event}: {msg}\n'
+    with open(LOG_FILE, 'a') as log_file:
+        log_file.write(log_msg)
+
+
 def telegram_bot(TOKEN):
     bot = telebot.TeleBot(TOKEN)
 
@@ -178,12 +188,25 @@ def telegram_bot(TOKEN):
             except:
                 bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
         else:
-            bot.send_message(msg.chat.id, 'Two dates must be specified: /swap_shifts dd.mm.yy dd.mm.yy')
+            bot.send_message(msg.chat.id, 'Two dates must be specified: /swap dd.mm.yy dd.mm.yy')
         if date1 and date2:
             data = swap_shifts(data, date1, date2)
             shifts_to_output = get_nearest_shifts(data, date1)
             put_shifts_data(data)
             bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
+
+
+    @bot.message_handler(commands=['add_shifts'])
+    def add_shifts(msg):
+        data = get_shifts_data(SHIFTS_FILE)
+        params = msg.text.split()[1:]
+        if len(params) == 1:
+            try:
+                date = datetime.strptime(params[0], "%d.%m.%y")
+            except:
+                bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
+        else:
+            bot.send_message(msg.chat.id, 'One date must be specified: /add dd.mm.yy')
 
 
     @bot.message_handler(content_types=['text'])
@@ -192,6 +215,7 @@ def telegram_bot(TOKEN):
         if msg.text.lower() == 'price':
             answer = get_ETH_price()
         elif 'новая версия конфигурации' in msg.text.lower():
+            add_to_log(msg.text, 'New config notify arrived')
             new_cfg_msg_data = parse_cfg_msg(msg.text)
             answer = compose_cfg_msg(new_cfg_msg_data)
         elif 'Неактуальная версия конф. 1С!' in msg.text:
