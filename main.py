@@ -196,17 +196,24 @@ def telegram_bot(TOKEN):
             bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
 
 
-    @bot.message_handler(commands=['add_shifts'])
+    @bot.message_handler(commands=['add'])
     def add_shifts(msg):
         data = get_shifts_data(SHIFTS_FILE)
         params = msg.text.split()[1:]
-        if len(params) == 1:
+        if len(params) == 3:
             try:
                 date = datetime.strptime(params[0], "%d.%m.%y")
             except:
                 bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
+            record = {}
+            record['date'] = date
+            record['watcher'] = params[1] + ' ' + params[2]
+            data.append(record)
+            shifts_to_output = get_nearest_shifts(data, date)
+            put_shifts_data(data)
+            bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
         else:
-            bot.send_message(msg.chat.id, 'One date must be specified: /add dd.mm.yy')
+            bot.send_message(msg.chat.id, 'One date must be specified: /add dd.mm.yy first_name last_name')
 
 
     @bot.message_handler(content_types=['text'])
