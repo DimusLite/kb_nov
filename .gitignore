@@ -6,3 +6,4 @@ compose_shifts_schedule.py
 scrap_rdp.py
 log.txt
 shifts.json
+.python-version
