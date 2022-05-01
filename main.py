@@ -10,7 +10,7 @@ LOG_FILE = 'log.txt'
 def parse_cfg_msg(text):
     text = text.replace('​', '') #clear message from ZWSP
     add_to_log(text, 'ZWSP cleared')
-    match = re.search(r'v\.?\s{1,3}(\d{1,2}\.\d{1,4})', text)  # v. 9.123
+    match = re.search(r'v\.?\s{1,3}(\d{1,2}\.?\d{1,4})', text)  # v. 9.123
     version = match.group(1) if match else "Not found"
 
     match = re.search(r'\d{2}\.\d{2}\.\d{2,4}', text)  # xx.xx.xx
