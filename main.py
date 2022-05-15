@@ -130,7 +130,7 @@ def add_to_log(msg, event):
         log_file.write(log_msg)
 
 
-def telegram_bot(TOKEN):
+def telegram_bot():
     bot = telebot.TeleBot(TOKEN)
 
     @bot.message_handler(commands=['start'])
@@ -232,9 +232,39 @@ def telegram_bot(TOKEN):
         if answer:
             bot.send_message(msg.chat.id, answer)
 
-
     bot.infinity_polling()
 
 
+def main():
+    """Основная логика работы бота."""
+    # if not check_tokens():
+    #     logger.critical('Не хватает переменных окружения')
+    #     raise EnvironmentVariablesMissing('Не хватает переменных окружения')
+    # bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    # current_timestamp = int(time.time()) - 60 * 60 * 24 * 50  # 50 days
+    # sent_message = ''
+    # while True:
+    #     try:
+    #         response = get_api_answer(current_timestamp)
+    #         homeworks = check_response(response)
+    #         if homeworks:
+    #             for homework in homeworks:
+    #                 msg = parse_status(homework)
+    #                 send_message(bot, msg)
+    #         else:
+    #             logger.debug('Нет изменений')
+    #         current_timestamp = int(time.time())
+    #     except Exception as error:
+    #         message = f'Сбой в работе программы: {error}'
+    #         logger.error(message)
+    #         message_is_new_one = (message != sent_message)
+    #         if message_is_new_one and not isinstance(error, SendMessageFail):
+    #             send_message(bot, message)
+    #             sent_message = message
+    #     finally:
+    #         time.sleep(RETRY_TIME)
+    telegram_bot()
+
+
 if __name__ == '__main__':
-    telegram_bot(TOKEN)
+    main()
