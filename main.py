@@ -14,6 +14,10 @@ SHOPS_FILE = 'shops.json'
 LOG_FILE = 'log.txt'
 TELEGRAM_CHAT_ID = 500711751
 
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
+                    # filename='myapp.log',
+                    level=logging.INFO)
+
 
 def parse_cfg_msg(text):
     text = text.replace('​', '') #clear message from ZWSP
@@ -244,18 +248,6 @@ def run_handlers(bot):
     bot.infinity_polling()
 
 
-def set_logging():
-    logger = logging.getLogger(__name__)
-    handler = logging.StreamHandler(stream=sys.stdout)
-    formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(message)s'
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
-    return logger
-
-
 class EnvironmentVariablesMissing(Exception):
     """Переменные окружения не обнаружены"""
     pass
@@ -269,21 +261,21 @@ def scheduled_check(bot):
     # now = datetime.datetime.now()
     # hour = now.hour
     # print('hour:', hour)
-    print('Start RDP Checking')
+    logging.info('Start monitoring')
 
     while True:
         # if hour in [22, 24]:
-        print('loop')
-        bot.send_message(TELEGRAM_CHAT_ID, 'RDP is checked, its ok')
+        msg = 'Resource checked, there is no updates'
+        logging.info(msg)
+        bot.send_message(TELEGRAM_CHAT_ID, msg)
 
         time.sleep(30)
 
 
 def main():
     """Основная логика работы бота."""
-    logger = set_logging()
     if not check_tokens():
-        logger.critical('Не хватает переменных окружения')
+        logging.critical('Не хватает переменных окружения')
         raise EnvironmentVariablesMissing('Не хватает переменных окружения')
 
     bot = telebot.TeleBot(TOKEN)
