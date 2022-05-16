@@ -1,11 +1,19 @@
+import logging
+import sys
+import time
+from threading import Thread
+
 import requests, telebot, re, json
-from datetime import datetime
+import datetime
+
 from os import environ
 
 TOKEN = environ.get('kb_nov_token', 'NOT_FOUND')
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
 LOG_FILE = 'log.txt'
+TELEGRAM_CHAT_ID = 500711751
+
 
 def parse_cfg_msg(text):
     text = text.replace('​', '') #clear message from ZWSP
@@ -130,8 +138,7 @@ def add_to_log(msg, event):
         log_file.write(log_msg)
 
 
-def telegram_bot():
-    bot = telebot.TeleBot(TOKEN)
+def run_handlers(bot):
 
     @bot.message_handler(commands=['start'])
     def send_start_msg(msg):
@@ -232,38 +239,56 @@ def telegram_bot():
         if answer:
             bot.send_message(msg.chat.id, answer)
 
+
+
     bot.infinity_polling()
+
+
+def set_logging():
+    logger = logging.getLogger(__name__)
+    handler = logging.StreamHandler(stream=sys.stdout)
+    formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(message)s'
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+    return logger
+
+
+class EnvironmentVariablesMissing(Exception):
+    """Переменные окружения не обнаружены"""
+    pass
+
+
+def check_tokens():
+    return True
+
+
+def scheduled_check(bot):
+    # now = datetime.datetime.now()
+    # hour = now.hour
+    # print('hour:', hour)
+    print('Start RDP Checking')
+
+    while True:
+        # if hour in [22, 24]:
+        print('loop')
+        bot.send_message(TELEGRAM_CHAT_ID, 'RDP is checked, its ok')
+
+        time.sleep(30)
 
 
 def main():
     """Основная логика работы бота."""
-    # if not check_tokens():
-    #     logger.critical('Не хватает переменных окружения')
-    #     raise EnvironmentVariablesMissing('Не хватает переменных окружения')
-    # bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    # current_timestamp = int(time.time()) - 60 * 60 * 24 * 50  # 50 days
-    # sent_message = ''
-    # while True:
-    #     try:
-    #         response = get_api_answer(current_timestamp)
-    #         homeworks = check_response(response)
-    #         if homeworks:
-    #             for homework in homeworks:
-    #                 msg = parse_status(homework)
-    #                 send_message(bot, msg)
-    #         else:
-    #             logger.debug('Нет изменений')
-    #         current_timestamp = int(time.time())
-    #     except Exception as error:
-    #         message = f'Сбой в работе программы: {error}'
-    #         logger.error(message)
-    #         message_is_new_one = (message != sent_message)
-    #         if message_is_new_one and not isinstance(error, SendMessageFail):
-    #             send_message(bot, message)
-    #             sent_message = message
-    #     finally:
-    #         time.sleep(RETRY_TIME)
-    telegram_bot()
+    logger = set_logging()
+    if not check_tokens():
+        logger.critical('Не хватает переменных окружения')
+        raise EnvironmentVariablesMissing('Не хватает переменных окружения')
+
+    bot = telebot.TeleBot(TOKEN)
+    Thread(target=scheduled_check, args=(bot,)).start()
+    run_handlers(bot)
 
 
 if __name__ == '__main__':
