@@ -7,3 +7,4 @@ scrap_rdp.py
 main.log
 shifts.json
 .python-version
+.env

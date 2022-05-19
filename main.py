@@ -2,18 +2,19 @@ import logging
 import sys
 import time
 from threading import Thread
+from dotenv import load_dotenv
+from os import environ
 
 import requests, telebot, re, json
 import datetime
 
-from os import environ
+load_dotenv()
+logger = logging.getLogger(__name__)
 
-TOKEN = environ.get('kb_nov_token', 'NOT_FOUND')
+BOT_TOKEN = environ.get('KB_NOV_TOKEN', 'NOT_FOUND')
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
 TELEGRAM_CHAT_ID = 500711751
-
-logger = logging.getLogger(__name__)
 
 
 def set_logging_config():
@@ -268,12 +269,12 @@ def scheduled_check(bot):
     # now = datetime.datetime.now()
     # hour = now.hour
     # print('hour:', hour)
-    logging.info('Start monitoring')
+    logger.info('Start monitoring')
 
     while True:
         # if hour in [22, 24]:
         msg = 'Resource checked, there is no updates'
-        logging.info(msg)
+        logger.info(msg)
         bot.send_message(TELEGRAM_CHAT_ID, msg)
 
         time.sleep(30)
@@ -286,7 +287,8 @@ def main():
         logger.critical('Не хватает переменных окружения')
         raise EnvironmentVariablesMissing('Не хватает переменных окружения')
 
-    bot = telebot.TeleBot(TOKEN)
+    logger.debug(BOT_TOKEN)
+    bot = telebot.TeleBot(BOT_TOKEN)
     Thread(target=scheduled_check, args=(bot,)).start()
     run_handlers(bot)
 
