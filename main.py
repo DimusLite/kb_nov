@@ -11,12 +11,19 @@ from os import environ
 TOKEN = environ.get('kb_nov_token', 'NOT_FOUND')
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
-LOG_FILE = 'log.txt'
 TELEGRAM_CHAT_ID = 500711751
 
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-                    # filename='myapp.log',
-                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def set_logging_config():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+        handlers=[
+            logging.FileHandler(str(__file__).split('.')[0] + '.log'),
+            logging.StreamHandler(stream=sys.stdout)]
+    )
 
 
 def parse_cfg_msg(text):
@@ -274,8 +281,9 @@ def scheduled_check(bot):
 
 def main():
     """Основная логика работы бота."""
+    set_logging_config()
     if not check_tokens():
-        logging.critical('Не хватает переменных окружения')
+        logger.critical('Не хватает переменных окружения')
         raise EnvironmentVariablesMissing('Не хватает переменных окружения')
 
     bot = telebot.TeleBot(TOKEN)
