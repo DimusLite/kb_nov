@@ -11,7 +11,7 @@ import datetime
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = environ.get('KB_NOV_TOKEN', 'NOT_FOUND')
+BOT_TOKEN = environ.get('KB_NOV_TOKEN', None)
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
 TELEGRAM_CHAT_ID = 500711751
@@ -256,12 +256,15 @@ def run_handlers(bot):
     bot.infinity_polling()
 
 
-class EnvironmentVariablesMissing(Exception):
-    """Переменные окружения не обнаружены"""
+class MissingEnvVar(Exception):
+    """Missing environment variables"""
     pass
 
 
 def check_tokens():
+    """Check if env variables loaded"""
+    if not BOT_TOKEN:
+        return False
     return True
 
 
@@ -281,12 +284,12 @@ def scheduled_check(bot):
 
 
 def main():
-    """Основная логика работы бота."""
+    """Main bot logic."""
     set_logging_config()
     if not check_tokens():
-        logger.critical('Не хватает переменных окружения')
-        raise EnvironmentVariablesMissing('Не хватает переменных окружения')
-
+        logger.critical('Missing environment variables')
+        raise MissingEnvVar('Missing environment variables')
+        return False
     logger.debug(BOT_TOKEN)
     bot = telebot.TeleBot(BOT_TOKEN)
     Thread(target=scheduled_check, args=(bot,)).start()
