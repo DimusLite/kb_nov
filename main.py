@@ -289,7 +289,6 @@ def main():
     if not check_tokens():
         logger.critical('Missing environment variables')
         raise MissingEnvVar('Missing environment variables')
-        return False
     logger.debug(BOT_TOKEN)
     bot = telebot.TeleBot(BOT_TOKEN)
     Thread(target=scheduled_check, args=(bot,)).start()
