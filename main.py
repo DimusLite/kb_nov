@@ -1,20 +1,23 @@
+import datetime
+import json
 import logging
+import re
 import sys
 import time
-from threading import Thread
-from dotenv import load_dotenv
 from os import environ
+from threading import Thread
 
-import requests, telebot, re, json
-import datetime
+import requests
+import telebot
+from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = environ.get('KB_NOV_TOKEN', None)
+BOT_TOKEN = environ.get('BOT_TOKEN', None)
+AUTHOR_CHAT_ID = environ.get('AUTHOR_CHAT_ID', None)
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
-TELEGRAM_CHAT_ID = 500711751
 
 
 def set_logging_config():
@@ -157,7 +160,6 @@ def run_handlers(bot):
         start_msg = "Hello friend! Just paste the text to convert it to config message or type /help for more options"
         bot.send_message(msg.chat.id, start_msg)
 
-
     @bot.message_handler(commands=['help'])
     def send_help_msg(msg):
         help_msg = "/cfg - blank config message\n\
@@ -167,7 +169,6 @@ def run_handlers(bot):
 "
         bot.send_message(msg.chat.id, help_msg)
 
-
     @bot.message_handler(commands=['cfg'])
     def send_cfg_template(msg):
         default_cfg_data = {
@@ -176,7 +177,6 @@ def run_handlers(bot):
             'changes': '- технические доработки'
         }
         bot.send_message(msg.chat.id, compose_cfg_msg(default_cfg_data))
-
 
     @bot.message_handler(commands=['shifts'])
     def send_shifts_schedule(msg):
@@ -193,7 +193,6 @@ def run_handlers(bot):
         if nearest_shifts == "":
             nearest_shifts = "There are no data in the date you specified"
         bot.send_message(msg.chat.id, nearest_shifts, parse_mode="HTML")
-
 
     @bot.message_handler(commands=['swap'])
     def swap(msg):
@@ -214,7 +213,6 @@ def run_handlers(bot):
             put_shifts_data(data)
             bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
 
-
     @bot.message_handler(commands=['add'])
     def add_shifts(msg):
         data = get_shifts_data(SHIFTS_FILE)
@@ -234,7 +232,6 @@ def run_handlers(bot):
         else:
             bot.send_message(msg.chat.id, 'One date must be specified: /add dd.mm.yy first_name last_name')
 
-
     @bot.message_handler(content_types=['text'])
     def send_answer(msg):
         answer = ''
@@ -251,8 +248,6 @@ def run_handlers(bot):
         if answer:
             bot.send_message(msg.chat.id, answer)
 
-
-
     bot.infinity_polling()
 
 
@@ -263,7 +258,10 @@ class MissingEnvVar(Exception):
 
 def check_tokens():
     """Check if env variables loaded"""
-    if not BOT_TOKEN:
+    vars = [BOT_TOKEN, AUTHOR_CHAT_ID]
+    vars_availability = [False if not var else True for var in vars]
+    logger.debug(vars_availability)
+    if not all(vars_availability):
         return False
     return True
 
@@ -278,7 +276,7 @@ def scheduled_check(bot):
         # if hour in [22, 24]:
         msg = 'Resource checked, there is no updates'
         logger.info(msg)
-        bot.send_message(TELEGRAM_CHAT_ID, msg)
+        bot.send_message(AUTHOR_CHAT_ID, msg)
 
         time.sleep(30)
 
