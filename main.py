@@ -258,8 +258,8 @@ class MissingEnvVar(Exception):
 
 def check_tokens():
     """Check if env variables loaded"""
-    vars = [BOT_TOKEN, AUTHOR_CHAT_ID]
-    vars_availability = [False if not var else True for var in vars]
+    env_vars = [BOT_TOKEN, AUTHOR_CHAT_ID]
+    vars_availability = [False if not var else True for var in env_vars]
     logger.debug(vars_availability)
     if not all(vars_availability):
         return False
