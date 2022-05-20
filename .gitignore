@@ -8,3 +8,4 @@ main.log
 shifts.json
 .python-version
 .env
+/tmp
