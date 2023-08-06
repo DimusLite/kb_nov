@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import json
 import logging
 import re
@@ -15,9 +15,11 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = environ.get('BOT_TOKEN', None)
-AUTHOR_CHAT_ID = environ.get('AUTHOR_CHAT_ID', None)
+AUTHOR_CHAT_ID = environ.get('AUTH'
+                             'OR_CHAT_ID', None)
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
+LOG_FILE = 'main.log'
 
 
 def set_logging_config():
@@ -276,7 +278,7 @@ def scheduled_check(bot):
         # if hour in [22, 24]:
         msg = 'Resource checked, there is no updates'
         logger.info(msg)
-        bot.send_message(AUTHOR_CHAT_ID, msg)
+        # bot.send_message(AUTHOR_CHAT_ID, msg)
 
         time.sleep(30)
 
