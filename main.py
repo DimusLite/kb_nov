@@ -148,6 +148,22 @@ def get_ETH_price():
         return "ошибка"
 
 
+def get_weather():
+    _URL = 'https://wttr.in'
+    _WEATHER_PARAMS = {
+        '0': '',
+        'T': '',
+        'M': '',
+        'lang': 'ru',
+    }
+    try:
+        response = requests.get(_URL, params=_WEATHER_PARAMS)
+        return response.text
+    except Exception as ex:
+        logger.error(f'Cannot connect to weather server {URL}', ex)
+        return "Ошибка соединения с сервером погоды"
+
+
 def add_to_log(msg, event):
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_msg = f'{current_time} - {event}: {msg}\n'
@@ -247,6 +263,8 @@ def run_handlers(bot):
             outdated_shops = parse_outdated_msg(msg.text)
             shops = get_shops(SHOPS_FILE)
             answer = compose_outdated_msg(outdated_shops, shops)
+        elif msg.text.lower() == 'погода':
+            answer = get_weather()
         if answer:
             bot.send_message(msg.chat.id, answer)
 
