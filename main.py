@@ -148,20 +148,29 @@ def get_ETH_price():
         return "ошибка"
 
 
-def get_weather():
-    _URL = 'https://wttr.in'
+def get_weather(city='Великий Новгород'):
+    """
+    Request weather data on the wttr.in
+    More params: https://wttr.in/:help
+    """
+
     _WEATHER_PARAMS = {
-        '0': '',
-        'T': '',
+        #'0': '',
+        #'T': '',
+        'format': 2,
         'M': '',
         'lang': 'ru',
     }
+    url = f'https://wttr.in/{city}'
     try:
-        response = requests.get(_URL, params=_WEATHER_PARAMS)
-        return response.text
-    except Exception as ex:
+        response = requests.get(url, params=_WEATHER_PARAMS)
+    except requests.ConnectionError as ex:
         logger.error(f'Cannot connect to weather server {URL}', ex)
-        return "Ошибка соединения с сервером погоды"
+    if response.status_code == 200:
+        return f'{city} {response.text}'
+    else:
+        logger.error('Weather server error')
+    return None
 
 
 def add_to_log(msg, event):
