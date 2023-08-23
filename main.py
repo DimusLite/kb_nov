@@ -154,6 +154,15 @@ def get_weather(city='Великий Новгород'):
     More params: https://wttr.in/:help
     """
 
+    CITIES = {
+        'новгород': 'Великий Новгород',
+        'спб': 'Санкт-Петербург',
+        'питер': 'Санкт-Петербург',
+        'санкт-петербург': 'Санкт-Петербург',
+        'мск': 'Москва',
+        'москва': 'Москва'
+    }
+
     _WEATHER_PARAMS = {
         #'0': '',
         #'T': '',
@@ -161,6 +170,11 @@ def get_weather(city='Великий Новгород'):
         'M': '',
         'lang': 'ru',
     }
+
+    if city in CITIES:
+        city = CITIES[city]
+    else:
+        city = 'Великий Новгород'
     url = f'https://wttr.in/{city}'
     try:
         response = requests.get(url, params=_WEATHER_PARAMS)
@@ -262,7 +276,14 @@ def run_handlers(bot):
     @bot.message_handler(content_types=['text'])
     def send_answer(msg):
         answer = ''
-        if msg.text.lower() == 'price':
+        splitted_msg = msg.text.split()
+        if len(splitted_msg) == 1:
+            cmd = msg.text.lower()
+            param1 = None
+        else:
+            cmd = splitted_msg[0].lower()
+            param1 = splitted_msg[1].lower()
+        if cmd == 'price':
             answer = get_ETH_price()
         elif 'новая версия конфигурации' in msg.text.lower():
             add_to_log(msg.text, 'New config notify arrived')
@@ -272,8 +293,8 @@ def run_handlers(bot):
             outdated_shops = parse_outdated_msg(msg.text)
             shops = get_shops(SHOPS_FILE)
             answer = compose_outdated_msg(outdated_shops, shops)
-        elif msg.text.lower() == 'погода':
-            answer = get_weather()
+        elif cmd == 'погода':
+            answer = get_weather(param1)
         if answer:
             bot.send_message(msg.chat.id, answer)
 
