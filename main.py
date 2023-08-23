@@ -179,7 +179,7 @@ def get_weather(city='Великий Новгород'):
     try:
         response = requests.get(url, params=_WEATHER_PARAMS)
     except requests.ConnectionError as ex:
-        logger.error(f'Cannot connect to weather server {URL}', ex)
+        logger.error(f'Cannot connect to weather server {url}', ex)
     if response.status_code == 200:
         return f'{city} {response.text}'
     else:
