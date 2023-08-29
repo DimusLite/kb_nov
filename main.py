@@ -15,8 +15,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = environ.get('BOT_TOKEN', None)
-AUTHOR_CHAT_ID = environ.get('AUTH'
-                             'OR_CHAT_ID', None)
+AUTHOR_CHAT_ID = environ.get('AUTHOR_CHAT_ID', None)
 SHIFTS_FILE = 'shifts.json'
 SHOPS_FILE = 'shops.json'
 LOG_FILE = 'main.log'
@@ -28,22 +27,26 @@ def set_logging_config():
         format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
         handlers=[
             logging.FileHandler(str(__file__).split('.')[0] + '.log'),
-            logging.StreamHandler(stream=sys.stdout)]
+            logging.StreamHandler(stream=sys.stdout)
+        ]
     )
 
 
 def parse_cfg_msg(text):
+    _CHANGES_TITLE = 'Перечень изменений:'
+    _NOT_FOUND_MSG = 'Not found'
+    _COMPLETE_LOG_MSG ='ZWSP cleared'
+
     text = text.replace('​', '') #clear message from ZWSP
-    add_to_log(text, 'ZWSP cleared')
+    add_to_log(text, _COMPLETE_LOG_MSG)
     match = re.search(r'v\.?\s{1,3}(\d{1,2}\.?\d{1,4})', text)  # v. 9.123
-    version = match.group(1) if match else "Not found"
+    version = match.group(1) if match else _NOT_FOUND_MSG
 
     match = re.search(r'\d{2}\.\d{2}\.\d{2,4}', text)  # xx.xx.xx
-    date = match.group(0) if match else "Not found"
+    date = match.group(0) if match else _NOT_FOUND_MSG
 
-    CHANGES_TITLE = 'Перечень изменений:'
-    titles_position = text.find(CHANGES_TITLE)
-    changes = text[titles_position + len(CHANGES_TITLE):].strip() if titles_position > 0 else "Not found"
+    titles_position = text.find(_CHANGES_TITLE)
+    changes = text[titles_position + len(_CHANGES_TITLE):].strip() if titles_position > 0 else _NOT_FOUND_MSG
 
     data = {
         'version': version,
@@ -59,37 +62,47 @@ def parse_outdated_msg(text):
 
 
 def compose_cfg_msg(data):
-    answer = f'\
-⚠️📒 Новая версия конфигурации 1с *v{data["version"]}* от *{data["date"]}*\n\
-\n\
-_Перечень изменений:_\n\
-{data["changes"]}\n\
-\n\
-Обновляемся *вечером после закрытия* или при наличии свободного времени'
+    answer = f"""\
+⚠️📒 Новая версия конфигурации 1с *v{data['version']}* от *{data['date']}*
+
+_Перечень изменений:_
+{data['changes']}
+
+Обновляемся *вечером после закрытия* или при наличии свободного времени
+"""
+
     return answer
 
 
 def compose_outdated_msg(codes, shops):
-    msg = "Магазины с необновленной конфигурацией:\n"
+    _OUTDATED_MSG = "Магазины с необновленной конфигурацией:\n"
+
+    msg = _OUTDATED_MSG
     for code in codes:
         for shop in shops:
             if shop['Code'] == code:
-                msg += f"{code} {shop['City']} {shop['Address']} +{shop['Tel']}\n"
+                msg += f"""\
+{code} {shop['City']} {shop['Address']} +{shop['Tel']}
+"""
     return msg
 
 
 def get_shifts_data(file):
+    _DATE_FORMAT = "%d.%m.%Y"
+
     with open(file, 'r') as json_file: # read data from file
         data = json.load(json_file)
 
     for day in data: # convert str to data
-        day['date'] = datetime.strptime(day['date'], "%d.%m.%Y")
+        day['date'] = datetime.strptime(day['date'], _DATE_FORMAT)
     return data
 
 
 def put_shifts_data(data):
+    _DATE_FORMAT = "%d.%m.%Y"
+
     for day in data:
-        day['date'] = datetime.strftime(day['date'], "%d.%m.%Y")
+        day['date'] = datetime.strftime(day['date'], _DATE_FORMAT)
     with open('shifts.json', 'w') as json_file:
         json.dump(data, json_file, indent=4, ensure_ascii=False)
 
@@ -101,12 +114,12 @@ def get_shops(file):
 
 
 def get_nearest_shifts(data, date):
-    NEAREST = range(-7, 14)
+    _NEAREST = range(-7, 14)
     nearest_shifts = ""
     for day in data:
         delta_now = day['date'] - datetime.now()
         delta_date = day['date'] - date
-        if delta_date.days in NEAREST:
+        if delta_date.days in _NEAREST:
             if delta_now.days < 0:
                 mark = 'del'
             elif delta_now.days < 7:
@@ -116,7 +129,9 @@ def get_nearest_shifts(data, date):
         else:
             continue  # exclude all days passed or future more 1 week
 
-        nearest_shifts += f"<{mark}>{day['date']:%d.%m %a}  {day['watcher']}</{mark}>\n"
+        nearest_shifts += f"""\
+<{mark}>{day['date']:%d.%m %a}  {day['watcher']}</{mark}>
+"""
 
     return nearest_shifts
 
@@ -138,23 +153,37 @@ def swap_shifts(data, date1, date2):
 
 
 def get_ETH_price():
+    _URL = 'https://yobit.net/api/3/ticker/eth_usdt'
+    _CONNECTION_ERROR_MSG = 'Cannot connect to ETH prices server'
+    _SERVER_ERROR_MSG = 'ETH price server error'
+    _SELL_PRICE_MSG = 'Sell ETH price:'
+
     try:
-        req = requests.get('https://yobit.net/api/3/ticker/eth_usdt')
-        response = req.json()
-        sell_price = response['eth_usdt']['sell']
-        return f"{datetime.now().strftime('%Y-%m-%d %H:%M')}\nSell ETH price: {sell_price}"
-    except Exception as ex:
-        print(ex)
-        return "ошибка"
+        response = requests.get(_URL)
+    except requests.ConnectionError as ex:
+        logger.error(_CONNECTION_ERROR_MSG, _URL, ex)
+    if response.status_code == 200:
+        json_response = response.json()
+        sell_price = json_response['eth_usdt']['sell']
+        return f"""\
+{datetime.now().strftime('%Y-%m-%d %H:%M')}
+{_SELL_PRICE_MSG} {sell_price}
+        """
+    else:
+        logger.error(_SERVER_ERROR_MSG)
+    return None
 
 
-def get_weather(city='Великий Новгород'):
+def get_weather(city=''):
     """
     Request weather data on the wttr.in
     More params: https://wttr.in/:help
     """
 
-    CITIES = {
+    _DEFAULT_CITY = 'Великий Новгород'
+    _CONNECTION_ERROR_MSG = 'Cannot connect to weather server'
+    _SERVER_ERROR_MSG = 'Weather server error'
+    _CITIES = {
         'новгород': 'Великий Новгород',
         'спб': 'Санкт-Петербург',
         'питер': 'Санкт-Петербург',
@@ -171,51 +200,67 @@ def get_weather(city='Великий Новгород'):
         'lang': 'ru',
     }
 
-    if city in CITIES:
-        city = CITIES[city]
+    if city in _CITIES:
+        city = _CITIES[city]
     else:
-        city = 'Великий Новгород'
+        city = _DEFAULT_CITY
+
     url = f'https://wttr.in/{city}'
     try:
         response = requests.get(url, params=_WEATHER_PARAMS)
     except requests.ConnectionError as ex:
-        logger.error(f'Cannot connect to weather server {url}', ex)
+        logger.error(_CONNECTION_ERROR_MSG, url, ex)
     if response.status_code == 200:
         return f'{city} {response.text}'
     else:
-        logger.error('Weather server error')
+        logger.error(_SERVER_ERROR_MSG)
     return None
 
 
 def add_to_log(msg, event):
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_msg = f'{current_time} - {event}: {msg}\n'
+    log_msg = f"""\
+{current_time} - {event}: {msg}
+"""
     with open(LOG_FILE, 'a') as log_file:
         log_file.write(log_msg)
 
 
 def run_handlers(bot):
+    _WELCOME_MSG = """\
+Hello friend! Just paste the text to convert it to config message or type /help for more options
+"""
+    _HELP_MSG = """\
+/cfg - blank config message
+/shifts - nearest shifts schedule
+/shifts dd.mm.yy - nearest to dd.mm.yy shifts
+/swap dd.mm.yy dd.mm.yy - swap shifts
+"""
+    _DEFAULT_CHANGES_MSG = "- технические доработки"
+    _WRONG_INPUT_MSG = "Wrong date, try dd.mm.yy format"
+    _DATES_MISSING_MSG = "Two dates must be specified: /swap dd.mm.yy dd.mm.yy"
+    _NO_SHIFTS_DATA = "There are no data on the days you specified"
+    _WRONG_ADD_INPUT_MSG = 'One date must be specified: /add dd.mm.yy first_name last_name'
+    _SEARCH_PATTERN = 'новая версия конфигурации'
+    _NEW_CFG_LOG_MSG = 'New config notify arrived'
+    _UNUPDATED_PATTERN = 'Неактуальная версия конф. 1С!'
+    _CMD_WEATHER = 'погода'
+    _CMD_PRICE = 'price'
 
     @bot.message_handler(commands=['start'])
     def send_start_msg(msg):
-        start_msg = "Hello friend! Just paste the text to convert it to config message or type /help for more options"
-        bot.send_message(msg.chat.id, start_msg)
+        bot.send_message(msg.chat.id, _WELCOME_MSG)
 
     @bot.message_handler(commands=['help'])
     def send_help_msg(msg):
-        help_msg = "/cfg - blank config message\n\
-/shifts - nearest shifts schedule\n\
-/shifts dd.mm.yy - nearest to dd.mm.yy shifts\n\
-/swap dd.mm.yy dd.mm.yy - swap shifts\n\
-"
-        bot.send_message(msg.chat.id, help_msg)
+        bot.send_message(msg.chat.id, _HELP_MSG)
 
     @bot.message_handler(commands=['cfg'])
     def send_cfg_template(msg):
         default_cfg_data = {
             'version': '9.xxx',
             'date': datetime.now().strftime('%d.%m.%Y'),
-            'changes': '- технические доработки'
+            'changes': _DEFAULT_CHANGES_MSG
         }
         bot.send_message(msg.chat.id, compose_cfg_msg(default_cfg_data))
 
@@ -229,10 +274,10 @@ def run_handlers(bot):
             try:
                 date = datetime.strptime(params[0], "%d.%m.%y")
             except:
-                bot.send_message(msg.chat.id,'Wrong date, try dd.mm.yy format')
+                bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
         nearest_shifts = get_nearest_shifts(data, date)
         if nearest_shifts == "":
-            nearest_shifts = "There are no data in the date you specified"
+            nearest_shifts = _NO_SHIFTS_DATA
         bot.send_message(msg.chat.id, nearest_shifts, parse_mode="HTML")
 
     @bot.message_handler(commands=['swap'])
@@ -245,9 +290,9 @@ def run_handlers(bot):
                 date1 = datetime.strptime(params[0], "%d.%m.%y")
                 date2 = datetime.strptime(params[1], "%d.%m.%y")
             except:
-                bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
+                bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
         else:
-            bot.send_message(msg.chat.id, 'Two dates must be specified: /swap dd.mm.yy dd.mm.yy')
+            bot.send_message(msg.chat.id, _DATES_MISSING_MSG)
         if date1 and date2:
             data = swap_shifts(data, date1, date2)
             shifts_to_output = get_nearest_shifts(data, date1)
@@ -262,7 +307,7 @@ def run_handlers(bot):
             try:
                 date = datetime.strptime(params[0], "%d.%m.%y")
             except:
-                bot.send_message(msg.chat.id, 'Wrong date, try dd.mm.yy format')
+                bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
             record = {}
             record['date'] = date
             record['watcher'] = params[1] + ' ' + params[2]
@@ -271,7 +316,7 @@ def run_handlers(bot):
             put_shifts_data(data)
             bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
         else:
-            bot.send_message(msg.chat.id, 'One date must be specified: /add dd.mm.yy first_name last_name')
+            bot.send_message(msg.chat.id, _WRONG_ADD_INPUT_MSG)
 
     @bot.message_handler(content_types=['text'])
     def send_answer(msg):
@@ -283,17 +328,17 @@ def run_handlers(bot):
         else:
             cmd = splitted_msg[0].lower()
             param1 = splitted_msg[1].lower()
-        if cmd == 'price':
+        if cmd == _CMD_PRICE:
             answer = get_ETH_price()
-        elif 'новая версия конфигурации' in msg.text.lower():
-            add_to_log(msg.text, 'New config notify arrived')
+        elif _SEARCH_PATTERN in msg.text.lower():
+            add_to_log(msg.text, _NEW_CFG_LOG_MSG)
             new_cfg_msg_data = parse_cfg_msg(msg.text)
             answer = compose_cfg_msg(new_cfg_msg_data)
-        elif 'Неактуальная версия конф. 1С!' in msg.text:
+        elif _UNUPDATED_PATTERN in msg.text:
             outdated_shops = parse_outdated_msg(msg.text)
             shops = get_shops(SHOPS_FILE)
             answer = compose_outdated_msg(outdated_shops, shops)
-        elif cmd == 'погода':
+        elif cmd == _CMD_WEATHER:
             answer = get_weather(param1)
         if answer:
             bot.send_message(msg.chat.id, answer)
@@ -317,14 +362,17 @@ def check_tokens():
 
 
 def scheduled_check(bot):
+    _START_LOG_MSG = 'Start monitoring'
+    _NO_UPDATES_LOG_MSG = 'Resource checked, there is no updates'
+
     # now = datetime.datetime.now()
     # hour = now.hour
     # print('hour:', hour)
-    logger.info('Start monitoring')
+    logger.info(_START_LOG_MSG)
 
     while True:
         # if hour in [22, 24]:
-        msg = 'Resource checked, there is no updates'
+        msg = _NO_UPDATES_LOG_MSG
         logger.info(msg)
         # bot.send_message(AUTHOR_CHAT_ID, msg)
 
@@ -333,10 +381,12 @@ def scheduled_check(bot):
 
 def main():
     """Main bot logic."""
+    _MISSING_VARS_LOG_MSG = 'Missing environment variables'
+
     set_logging_config()
     if not check_tokens():
-        logger.critical('Missing environment variables')
-        raise MissingEnvVar('Missing environment variables')
+        logger.critical(_MISSING_VARS_LOG_MSG)
+        raise MissingEnvVar(_MISSING_VARS_LOG_MSG)
     logger.debug(BOT_TOKEN)
     bot = telebot.TeleBot(BOT_TOKEN)
     Thread(target=scheduled_check, args=(bot,)).start()
