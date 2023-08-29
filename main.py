@@ -1,9 +1,9 @@
-from datetime import datetime
 import json
 import logging
 import re
 import sys
 import time
+from datetime import datetime
 from os import environ
 from threading import Thread
 
