@@ -9,3 +9,4 @@ shifts.json
 .python-version
 .env
 /tmp
+shops.sqlite
