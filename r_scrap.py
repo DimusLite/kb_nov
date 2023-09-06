@@ -1,5 +1,7 @@
 """Scraping sps-holding.ru/r/ and sps-holding.ru/rdp/ data"""
+from bs4 import BeautifulSoup
 import requests
+import sqlite3
 
 RDP_ACCOUNT = {
     'login': 'legkiy.dmitriy',
@@ -29,6 +31,7 @@ USER_KEYS = {
     'Lite': '',
     'Pinchuk': '&user=ce1835257ace0ad250d33b41cf0190eb'
 }
+SHOPS_DB = 'shops.sqlite'
 
 
 def get_remote_page(url, headers=None, auth=None):
@@ -36,23 +39,98 @@ def get_remote_page(url, headers=None, auth=None):
                             headers=headers,
                             auth=auth)
     if response.ok:
-        return response.text
+        return response
     else:
         print('Requests error', response.status_code)
     return None
 
 
-if __name__ == '__main__':
-    # remote_page = get_remote_page(
-    #     URL_RDP+USER_KEYS['Galasha'],
-    #     {'User-Agent': USER_AGENT},
-    #     (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
-    # )
+def compose_table(data):
+    soup = BeautifulSoup(data.content, 'html.parser')
+    table = soup.find('table', class_='livefilter')
+    rows = table.find_all('tr')
+    shops = []
+    for row in rows:
+        cols = row.find_all('td')
+        shop = {
+            'Code': cols[0].text,
+            'IP': cols[1].text,
+            'City': cols[4].text,
+            'Address': cols[3].text,
+            'email': cols[5].text,
+            'Tel': cols[6].text,
+            'SA': cols[10].text,
+            'BigBoss': cols[11].text,
+            'HugeBoss': cols[12].text,
+            'AstronomicBoss': cols[13].text
+        }
+        shops.append(shop)
+    return shops
 
+
+def update_db(data):
+    try:
+        sqlite_connection = sqlite3.connect(SHOPS_DB)
+        cursor = sqlite_connection.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS shops(
+                code INTEGER PRIMARY KEY,
+                ip text NOT NULL,
+                city text NOT NULL,
+                address text NOT NULL,
+                email text NOT NULL,
+                tel INTEGER NOT NULL,
+                sa text NOT NULL,
+                bigboss text,
+                hugeboss text,
+                astronomicboss text
+            );
+        ''')
+
+        # Corrupt data for tests
+        cursor.execute('''
+            UPDATE shops SET ip = '' WHERE code = 23059
+        ''')
+
+        for shop in data:
+            # print(tuple(shop.values())[4])
+            sql_query = f'''
+    INSERT INTO shops (code, ip, city, address, email, tel, sa, bigboss, 
+                       hugeboss, astronomicboss)
+    VALUES {tuple(shop.values())}
+    ON CONFLICT(code) DO UPDATE SET
+        code = ?, ip = ?, city = ?, address = ?, email = ?, tel = ?, sa = ?, 
+        bigboss = ?, hugeboss = ?, astronomicboss = ?
+'''
+            cursor.execute(sql_query, list(shop.values()))
+            # print(list(shop.values())[0])
+
+        cursor.execute('SELECT * FROM shops')
+        for res in cursor:
+            print(res)
+
+    except sqlite3.Error as error:
+        print("SQLite connection error", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.commit()
+            sqlite_connection.close()
+            print("SQLite connection closed")
+    return None
+
+
+if __name__ == '__main__':
     remote_page = get_remote_page(
-        URL_R,
-        {'User-Agent': USER_AGENT, 'Cookie': USER_COOKIES['Lite']},
-        (R_ACCOUNT['login'], R_ACCOUNT['password'])
+        URL_RDP+USER_KEYS['Galasha'],
+        {'User-Agent': USER_AGENT},
+        (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
     )
 
-    print(remote_page)
+    # remote_page = get_remote_page(
+    #     URL_R,
+    #     {'User-Agent': USER_AGENT, 'Cookie': USER_COOKIES['Lite']},
+    #     (R_ACCOUNT['login'], R_ACCOUNT['password'])
+    # )
+
+    shops = compose_table(remote_page)
+    update_db(shops)
