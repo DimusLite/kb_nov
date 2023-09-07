@@ -52,12 +52,14 @@ def compose_table(data):
     shops = []
     for row in rows:
         cols = row.find_all('td')
+        href = row.find('a')['href']
+        email = href.split(':')[1]  # remove mailto:
         shop = {
             'Code': cols[0].text,
             'IP': cols[1].text,
             'City': cols[4].text,
             'Address': cols[3].text,
-            'email': cols[5].text,
+            'email': email,
             'Tel': cols[6].text,
             'SA': cols[10].text,
             'BigBoss': cols[11].text,
