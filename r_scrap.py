@@ -39,14 +39,14 @@ def get_remote_page(url, headers=None, auth=None):
                             headers=headers,
                             auth=auth)
     if response.ok:
-        return response
+        return response.content
     else:
         print('Requests error', response.status_code)
     return None
 
 
-def compose_table(data):
-    soup = BeautifulSoup(data.content, 'html.parser')
+def compose_table(source):
+    soup = BeautifulSoup(source, 'html.parser')
     table = soup.find('table', class_='livefilter')
     rows = table.find_all('tr')
     shops = []
@@ -121,12 +121,21 @@ def update_db(data):
     return None
 
 
+
+
+
 if __name__ == '__main__':
-    remote_page = get_remote_page(
-        URL_RDP+USER_KEYS['Galasha'],
-        {'User-Agent': USER_AGENT},
-        (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
-    )
+    shops = []
+    for user in USER_KEYS.values():
+        remote_page = get_remote_page(
+            URL_RDP + user,
+            {'User-Agent': USER_AGENT},
+            (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
+        )
+        user_shops = compose_table(remote_page)
+        shops.extend(user_shops)
+
+    update_db(shops)
 
     # remote_page = get_remote_page(
     #     URL_R,
@@ -134,5 +143,4 @@ if __name__ == '__main__':
     #     (R_ACCOUNT['login'], R_ACCOUNT['password'])
     # )
 
-    shops = compose_table(remote_page)
-    update_db(shops)
+
