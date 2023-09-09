@@ -10,3 +10,4 @@ shifts.json
 .env
 /tmp
 shops.sqlite
+__pycache__/
