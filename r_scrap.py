@@ -31,6 +31,12 @@ USER_KEYS = {
     'Lite': '',
     'Pinchuk': '&user=ce1835257ace0ad250d33b41cf0190eb'
 }
+USERS = {
+    'Galasha': 'Галаша Александр Александрович',
+    'Grigoriev': 'Григорьев Александр Владимирович',
+    'Lite': 'Лёгкий Дмитрий Сергеевич',
+    'Pinchuk': 'Пинчук Алексей Анатольевич'
+}
 SHOPS_DB = 'shops.sqlite'
 
 
@@ -121,21 +127,56 @@ def update_db(data):
     return None
 
 
+def get_shops_data(param):
+    try:
+        sqlite_connection = sqlite3.connect(SHOPS_DB)
+        cursor = sqlite_connection.cursor()
+        if param in USERS.keys():
+            user = USERS[param]
+            cursor.execute(f'''\
+SELECT * 
+FROM shops
+WHERE sa = "{user}"
+''')
+        else:
+            try:
+                code_shop = int(param)
+                cursor.execute(f'''\
+SELECT *
+FROM shops
+WHERE code = {code_shop}
+''')
+            except ValueError:
+                return None
+        result = []
+        for res in cursor:
+            result.append(res)
+        return result
+    except sqlite3.Error as error:
+        print("SQLite connection error", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.commit()
+            sqlite_connection.close()
+            print("SQLite connection closed")
 
+    return '[Shops list]'
 
 
 if __name__ == '__main__':
-    shops = []
-    for user in USER_KEYS.values():
-        remote_page = get_remote_page(
-            URL_RDP + user,
-            {'User-Agent': USER_AGENT},
-            (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
-        )
-        user_shops = compose_table(remote_page)
-        shops.extend(user_shops)
+    # shops = []
+    # for user in USER_KEYS.values():
+    #     remote_page = get_remote_page(
+    #         URL_RDP + user,
+    #         {'User-Agent': USER_AGENT},
+    #         (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
+    #     )
+    #     user_shops = compose_table(remote_page)
+    #     shops.extend(user_shops)
+    #
+    # update_db(shops)
 
-    update_db(shops)
+    print(get_shops_data(3421))
 
     # remote_page = get_remote_page(
     #     URL_R,
