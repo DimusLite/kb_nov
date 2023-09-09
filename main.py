@@ -11,6 +11,8 @@ import requests
 import telebot
 from dotenv import load_dotenv
 
+import r_scrap
+
 load_dotenv()
 logger = logging.getLogger(__name__)
 
@@ -84,6 +86,28 @@ def compose_outdated_msg(codes, shops):
                 msg += f"""\
 {code} {shop['City']} {shop['Address']} +{shop['Tel']}
 """
+    return msg
+
+
+def compose_shops_msg(shops):
+    if not shops:
+        return 'Нет магазинов с таким номером или СА'
+    msg = ''
+    if len(shops) > 1:
+        msg += f'СТ {shops[0][6]}:\n'
+        for shop in shops:
+            msg += f'''\
+{shop[0]} {shop[2]} {shop[3]}
+'''
+    else:
+        shop = shops[0]
+        msg += f'''\
+Магазин {shop[0]} {shop[2]} {shop[3]}:
+{shop[5]}
+{shop[4]}
+{shop[6]}
+'''
+
     return msg
 
 
@@ -317,6 +341,14 @@ Hello friend! Just paste the text to convert it to config message or type /help 
             bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
         else:
             bot.send_message(msg.chat.id, _WRONG_ADD_INPUT_MSG)
+
+    @bot.message_handler(commands=['get'])
+    def send_shops(msg):
+        param = msg.text.split()[1]
+        if param:
+            shops = r_scrap.get_shops_data(param)
+            shops_msg = compose_shops_msg(shops)
+            bot.send_message(msg.chat.id, shops_msg)
 
     @bot.message_handler(content_types=['text'])
     def send_answer(msg):
