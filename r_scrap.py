@@ -76,7 +76,7 @@ def compose_table(source):
     return shops
 
 
-def update_db(data):
+def upsert_db(data):
     try:
         sqlite_connection = sqlite3.connect(SHOPS_DB)
         cursor = sqlite_connection.cursor()
@@ -95,13 +95,7 @@ def update_db(data):
             );
         ''')
 
-        # Corrupt data for tests
-        cursor.execute('''
-            UPDATE shops SET ip = '' WHERE code = 23059
-        ''')
-
         for shop in data:
-            # print(tuple(shop.values())[4])
             sql_query = f'''
     INSERT INTO shops (code, ip, city, address, email, tel, sa, bigboss, 
                        hugeboss, astronomicboss)
@@ -111,11 +105,7 @@ def update_db(data):
         bigboss = ?, hugeboss = ?, astronomicboss = ?
 '''
             cursor.execute(sql_query, list(shop.values()))
-            # print(list(shop.values())[0])
-
-        cursor.execute('SELECT * FROM shops')
-        for res in cursor:
-            print(res)
+        return True
 
     except sqlite3.Error as error:
         print("SQLite connection error", error)
@@ -124,7 +114,7 @@ def update_db(data):
             sqlite_connection.commit()
             sqlite_connection.close()
             print("SQLite connection closed")
-    return None
+    return False
 
 
 def get_shops_data(param):
@@ -163,20 +153,24 @@ WHERE code = {code_shop}
     return '[Shops list]'
 
 
-if __name__ == '__main__':
-    # shops = []
-    # for user in USER_KEYS.values():
-    #     remote_page = get_remote_page(
-    #         URL_RDP + user,
-    #         {'User-Agent': USER_AGENT},
-    #         (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
-    #     )
-    #     user_shops = compose_table(remote_page)
-    #     shops.extend(user_shops)
-    #
-    # update_db(shops)
+def update_data():
+    shops = []
+    for user in USER_KEYS.values():
+        remote_page = get_remote_page(
+            URL_RDP + user,
+            {'User-Agent': USER_AGENT},
+            (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
+        )
+        user_shops = compose_table(remote_page)
+        shops.extend(user_shops)
 
-    print(get_shops_data(3421))
+    return upsert_db(shops)
+
+
+if __name__ == '__main__':
+    print(update_data())
+
+    # print(get_shops_data(5421))
 
     # remote_page = get_remote_page(
     #     URL_R,

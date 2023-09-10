@@ -350,6 +350,11 @@ Hello friend! Just paste the text to convert it to config message or type /help 
             shops_msg = compose_shops_msg(shops)
             bot.send_message(msg.chat.id, shops_msg)
 
+    @bot.message_handler(commands=['upd'])
+    def upd_shops(msg):
+        if r_scrap.update_data():
+            bot.send_message(msg.chat.id, 'Shops data updated')
+
     @bot.message_handler(content_types=['text'])
     def send_answer(msg):
         answer = ''
