@@ -51,7 +51,7 @@ def get_remote_page(url, headers=None, auth=None):
     return None
 
 
-def compose_table(source):
+def convert_page_to_shops(source):
     soup = BeautifulSoup(source, 'html.parser')
     table = soup.find('table', class_='livefilter')
     rows = table.find_all('tr')
@@ -76,7 +76,7 @@ def compose_table(source):
     return shops
 
 
-def upsert_db(data):
+def upsert_db_shops(data):
     try:
         sqlite_connection = sqlite3.connect(SHOPS_DB)
         cursor = sqlite_connection.cursor()
@@ -117,7 +117,7 @@ def upsert_db(data):
     return False
 
 
-def get_shops_data(param):
+def get_db_shops(param):
     try:
         sqlite_connection = sqlite3.connect(SHOPS_DB)
         cursor = sqlite_connection.cursor()
@@ -153,7 +153,7 @@ WHERE code = {code_shop}
     return '[Shops list]'
 
 
-def update_data():
+def update_db_shops():
     shops = []
     for user in USER_KEYS.values():
         remote_page = get_remote_page(
@@ -161,14 +161,15 @@ def update_data():
             {'User-Agent': USER_AGENT},
             (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
         )
-        user_shops = compose_table(remote_page)
+        user_shops = convert_page_to_shops(remote_page)
         shops.extend(user_shops)
 
-    return upsert_db(shops)
+    return upsert_db_shops(shops)
 
 
 if __name__ == '__main__':
-    print(update_data())
+    # print()
+    print(update_db_shops())
 
     # print(get_shops_data(5421))
 

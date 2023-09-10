@@ -346,13 +346,13 @@ Hello friend! Just paste the text to convert it to config message or type /help 
     def send_shops(msg):
         param = msg.text.split()[1]
         if param:
-            shops = r_scrap.get_shops_data(param)
+            shops = r_scrap.get_db_shops(param)
             shops_msg = compose_shops_msg(shops)
             bot.send_message(msg.chat.id, shops_msg)
 
     @bot.message_handler(commands=['upd'])
     def upd_shops(msg):
-        if r_scrap.update_data():
+        if r_scrap.update_db_shops():
             bot.send_message(msg.chat.id, 'Shops data updated')
 
     @bot.message_handler(content_types=['text'])
