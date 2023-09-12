@@ -43,4 +43,5 @@ users = [(0, 'Лёгкий Дмитрий Сергеевич', 'Lite', '',
           '%D0%B5%D0%B9%20%D0%90%D0%BD%D0%B0%D1%82%D0%BE%D0%BB%D1%8C%D0%B5%D0'
           '%B2%D0%B8%D1%87; r_modul=summary;')
 ]
+r_scrap.init_db_user()
 print(r_scrap.upsert_db_users(users))
