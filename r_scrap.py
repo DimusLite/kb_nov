@@ -14,29 +14,6 @@ R_ACCOUNT = {
 URL_R = 'https://sps-holding.ru/r/?m=summary&json&i'
 URL_RDP = 'https://sps-holding.ru/rdp/?mag'
 USER_AGENT = 'PostmanRuntime/7.32.3'
-USER_COOKIES = {
-    'Lite': ('u=%D0%93%D0%B0%D0%BB%D0%BA%D0%B8%D0%BD%20%D0%98%D0%BB%D1%8C%D1'
-             '%8F%20%D0%92%D0%B0%D0%B4%D0%B8%D0%BC%D0%BE%D0%B2%D0%B8%D1%87'
-             '%7C%D0%93%D0%B0%D0%BB%D0%BA%D0%B8%D0%BD%20%D0%98%D0%BB%D1%8C'
-             '%D1%8F%20%D0%92%D0%B0%D0%B4%D0%B8%D0%BC%D0%BE%D0%B2%D0%B8%D1%'
-             '87%7C%D0%9F%D0%BE%D0%BF%D0%BE%D0%B2%20%D0%95%D0%B2%D0%B3%D0%B5'
-             '%D0%BD%D0%B8%D0%B9%20%D0%9D%D0%B8%D0%BA%D0%BE%D0%BB%D0%B0%D0'
-             '%B5%D0%B2%D0%B8%D1%87%7C%D0%9B%D1%91%D0%B3%D0%BA%D0%B8%D0%B9'
-             '%20%D0%94%D0%BC%D0%B8%D1%82%D1%80%D0%B8%D0%B9%20%D0%A1%D0%B5'
-             '%D1%80%D0%B3%D0%B5%D0%B5%D0%B2%D0%B8%D1%87; r_modul=summary;'),
-}
-USER_KEYS = {
-    'Galasha': '&user=36c5b421216cd156fd18f7b866354a16',
-    'Grigoriev': '&user=040d1a1362f3ff3a6746340d578b4672',
-    'Lite': '',
-    'Pinchuk': '&user=ce1835257ace0ad250d33b41cf0190eb'
-}
-USERS = {
-    'Galasha': 'Галаша Александр Александрович',
-    'Grigoriev': 'Григорьев Александр Владимирович',
-    'Lite': 'Лёгкий Дмитрий Сергеевич',
-    'Pinchuk': 'Пинчук Алексей Анатольевич'
-}
 SHOPS_DB = 'shops.sqlite'
 
 
@@ -121,23 +98,33 @@ def get_db_shops(param):
     try:
         sqlite_connection = sqlite3.connect(SHOPS_DB)
         cursor = sqlite_connection.cursor()
-        if param in USERS.keys():
-            user = USERS[param]
-            cursor.execute(f'''\
+        cursor.execute(f'''\
 SELECT * 
-FROM shops
-WHERE sa = "{user}"
+FROM users
+WHERE name = "{param}" OR nick = "{param}"
 ''')
-        else:
+        user = cursor.fetchone()
+        if not user:
+            print('user wasnt finded')
             try:
                 code_shop = int(param)
                 cursor.execute(f'''\
 SELECT *
 FROM shops
 WHERE code = {code_shop}
-''')
+            ''')
+                result = []
+                for res in cursor:
+                    result.append(res)
+                return result
             except ValueError:
                 return None
+        user_name = user[1]
+        cursor.execute(f'''\
+SELECT *
+FROM shops
+WHERE sa = "{user_name}"
+    ''')
         result = []
         for res in cursor:
             result.append(res)
@@ -155,9 +142,10 @@ WHERE code = {code_shop}
 
 def update_db_shops():
     shops = []
-    for user in USER_KEYS.values():
+    users = get_db_users()
+    for user in users:
         remote_page = get_remote_page(
-            URL_RDP + user,
+            URL_RDP + user[3],
             {'User-Agent': USER_AGENT},
             (RDP_ACCOUNT['login'], RDP_ACCOUNT['password'])
         )
@@ -167,9 +155,83 @@ def update_db_shops():
     return upsert_db_shops(shops)
 
 
+def init_db_user():
+    try:
+        sqlite_connection = sqlite3.connect(SHOPS_DB)
+        cursor = sqlite_connection.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users(
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                nick TEXT NOT NULL UNIQUE,
+                url_key TEXT NOT NULL,
+                cookie TEXT NOT NULL
+            );
+        ''')
+        return True
+    except sqlite3.Error as error:
+        print("SQLite connection error", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.commit()
+            sqlite_connection.close()
+            print("SQLite connection closed")
+    return False
+
+
+def get_db_users():
+    try:
+        sqlite_connection = sqlite3.connect(SHOPS_DB)
+        cursor = sqlite_connection.cursor()
+        cursor.execute('''
+SELECT *
+FROM users
+            ''')
+        users = []
+        for res in cursor:
+            users.append(res)
+        return users
+    except sqlite3.Error as error:
+        print("SQLite connection error", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.commit()
+            sqlite_connection.close()
+            print("SQLite connection closed")
+    return False
+
+
+def upsert_db_users(users):
+    """Add users to database users table
+    Input: users list of tuples
+    Call example: upsert_db_users([('id', 'name', 'nick', '', ''), ...])
+    """
+    try:
+        sqlite_connection = sqlite3.connect(SHOPS_DB)
+        cursor = sqlite_connection.cursor()
+        for user in users:
+            sql_query = f'''
+            INSERT INTO users (id, name, nick, url_key, cookie)
+            VALUES {user}
+            ON CONFLICT(id) DO UPDATE SET
+                id = ?, name = ?, nick = ?, url_key = ?, cookie = ?
+        '''
+            cursor.execute(sql_query, user)
+        return True
+    except sqlite3.Error as error:
+        print("SQLite connection error", error)
+    finally:
+        if (sqlite_connection):
+            sqlite_connection.commit()
+            sqlite_connection.close()
+            print("SQLite connection closed")
+    return False
+
+
 if __name__ == '__main__':
-    # print()
-    print(update_db_shops())
+    # print(upsert_db_users(users))
+    print(get_db_users())
+    # print(update_db_shops())
 
     # print(get_shops_data(5421))
 
