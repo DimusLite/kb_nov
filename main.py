@@ -198,7 +198,7 @@ def get_ETH_price():
     return None
 
 
-def get_weather(city=''):
+def get_weather(city=None):
     """
     Request weather data on the wttr.in
     More params: https://wttr.in/:help
@@ -355,19 +355,28 @@ Hello friend! Just paste the text to convert it to config message or type /help 
         if r_scrap.update_db_shops():
             bot.send_message(msg.chat.id, 'Shops data updated')
 
+    @bot.message_handler(commands=['eth'])
+    def get_eth(msg):
+        answer = get_ETH_price()
+        if answer:
+            bot.send_message(msg.chat.id, answer)    \
+
+    @bot.message_handler(commands=['weather'])
+    def get_eth(msg):
+        try:
+            param = msg.text.split()[1]
+        except IndexError:
+            param = None
+        answer = get_weather(param)
+        if answer:
+            bot.send_message(msg.chat.id, answer)
+
+
+
     @bot.message_handler(content_types=['text'])
-    def send_answer(msg):
-        answer = ''
-        splitted_msg = msg.text.split()
-        if len(splitted_msg) == 1:
-            cmd = msg.text.lower()
-            param1 = None
-        else:
-            cmd = splitted_msg[0].lower()
-            param1 = splitted_msg[1].lower()
-        if cmd == _CMD_PRICE:
-            answer = get_ETH_price()
-        elif _SEARCH_PATTERN in msg.text.lower():
+    def process_text(msg):
+        answer = None
+        if _SEARCH_PATTERN in msg.text.lower():
             add_to_log(msg.text, _NEW_CFG_LOG_MSG)
             new_cfg_msg_data = parse_cfg_msg(msg.text)
             answer = compose_cfg_msg(new_cfg_msg_data)
@@ -375,8 +384,6 @@ Hello friend! Just paste the text to convert it to config message or type /help 
             outdated_shops = parse_outdated_msg(msg.text)
             shops = get_shops(SHOPS_FILE)
             answer = compose_outdated_msg(outdated_shops, shops)
-        elif cmd == _CMD_WEATHER:
-            answer = get_weather(param1)
         if answer:
             bot.send_message(msg.chat.id, answer)
 
