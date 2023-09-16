@@ -24,6 +24,7 @@ LOG_FILE = 'main.log'
 
 
 def set_logging_config():
+    """Set options for logging"""
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
@@ -32,6 +33,16 @@ def set_logging_config():
             logging.StreamHandler(stream=sys.stdout)
         ]
     )
+
+
+def check_env_vars():
+    """Check if env variables loaded"""
+    env_vars = [BOT_TOKEN, AUTHOR_CHAT_ID]
+    vars_availability = [False if not var else True for var in env_vars]
+    logger.debug(f'Env vars are available: {vars_availability}')
+    if not all(vars_availability):
+        return False
+    return True
 
 
 def parse_cfg_msg(text):
@@ -63,7 +74,15 @@ def parse_outdated_msg(text):
     return shops_nums
 
 
-def compose_cfg_msg(data):
+def compose_cfg_msg(data=None):
+    _DEFAULT_CHANGES_MSG = "- технические доработки"
+
+    if not data:
+        data = {
+            'version': '10xxx',
+            'date': datetime.now().strftime('%d.%m.%Y'),
+            'changes': _DEFAULT_CHANGES_MSG
+        }
     answer = f"""\
 ⚠️📒 Новая версия конфигурации 1с *v{data['version']}* от *{data['date']}*
 
@@ -72,7 +91,6 @@ _Перечень изменений:_
 
 Обновляемся *вечером после закрытия* или при наличии свободного времени
 """
-
     return answer
 
 
@@ -176,7 +194,7 @@ def swap_shifts(data, date1, date2):
     return data
 
 
-def get_ETH_price():
+def get_eth_price():
     _URL = 'https://yobit.net/api/3/ticker/eth_usdt'
     _CONNECTION_ERROR_MSG = 'Cannot connect to ETH prices server'
     _SERVER_ERROR_MSG = 'ETH price server error'
@@ -256,11 +274,10 @@ Hello friend! Just paste the text to convert it to config message or type /help 
 """
     _HELP_MSG = """\
 /cfg - blank config message
-/shifts - nearest shifts schedule
-/shifts dd.mm.yy - nearest to dd.mm.yy shifts
-/swap dd.mm.yy dd.mm.yy - swap shifts
+/get #### - get info about #### shop
+/get Galasha -  get SA shops list
+/upd - update shops database from sps-holding.ru/rdp 
 """
-    _DEFAULT_CHANGES_MSG = "- технические доработки"
     _WRONG_INPUT_MSG = "Wrong date, try dd.mm.yy format"
     _DATES_MISSING_MSG = "Two dates must be specified: /swap dd.mm.yy dd.mm.yy"
     _NO_SHIFTS_DATA = "There are no data on the days you specified"
@@ -270,6 +287,9 @@ Hello friend! Just paste the text to convert it to config message or type /help 
     _UNUPDATED_PATTERN = 'Неактуальная версия конф. 1С!'
     _CMD_WEATHER = 'погода'
     _CMD_PRICE = 'price'
+    _UPD_OK_MSG = 'Shops data updated'
+    _FAILED_MSG = 'Something went wrong'
+    _PARAM_MISSING_MSG = 'Не хватает параметров'
 
     @bot.message_handler(commands=['start'])
     def send_start_msg(msg):
@@ -281,66 +301,61 @@ Hello friend! Just paste the text to convert it to config message or type /help 
 
     @bot.message_handler(commands=['cfg'])
     def send_cfg_template(msg):
-        default_cfg_data = {
-            'version': '9.xxx',
-            'date': datetime.now().strftime('%d.%m.%Y'),
-            'changes': _DEFAULT_CHANGES_MSG
-        }
-        bot.send_message(msg.chat.id, compose_cfg_msg(default_cfg_data))
+        bot.send_message(msg.chat.id, compose_cfg_msg())
 
-    @bot.message_handler(commands=['shifts'])
-    def send_shifts_schedule(msg):
-        data = get_shifts_data(SHIFTS_FILE)
-        data.sort(key=lambda x: x['date'])
-        date = datetime.now()
-        params = msg.text.split()[1:]
-        if len(params) == 1:
-            try:
-                date = datetime.strptime(params[0], "%d.%m.%y")
-            except:
-                bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
-        nearest_shifts = get_nearest_shifts(data, date)
-        if nearest_shifts == "":
-            nearest_shifts = _NO_SHIFTS_DATA
-        bot.send_message(msg.chat.id, nearest_shifts, parse_mode="HTML")
-
-    @bot.message_handler(commands=['swap'])
-    def swap(msg):
-        data = get_shifts_data(SHIFTS_FILE)
-        date1, date2 = None, None
-        params = msg.text.split()[1:]
-        if len(params) == 2:
-            try:
-                date1 = datetime.strptime(params[0], "%d.%m.%y")
-                date2 = datetime.strptime(params[1], "%d.%m.%y")
-            except:
-                bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
-        else:
-            bot.send_message(msg.chat.id, _DATES_MISSING_MSG)
-        if date1 and date2:
-            data = swap_shifts(data, date1, date2)
-            shifts_to_output = get_nearest_shifts(data, date1)
-            put_shifts_data(data)
-            bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
-
-    @bot.message_handler(commands=['add'])
-    def add_shifts(msg):
-        data = get_shifts_data(SHIFTS_FILE)
-        params = msg.text.split()[1:]
-        if len(params) == 3:
-            try:
-                date = datetime.strptime(params[0], "%d.%m.%y")
-            except:
-                bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
-            record = {}
-            record['date'] = date
-            record['watcher'] = params[1] + ' ' + params[2]
-            data.append(record)
-            shifts_to_output = get_nearest_shifts(data, date)
-            put_shifts_data(data)
-            bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
-        else:
-            bot.send_message(msg.chat.id, _WRONG_ADD_INPUT_MSG)
+    # @bot.message_handler(commands=['shifts'])
+    # def send_shifts_schedule(msg):
+    #     data = get_shifts_data(SHIFTS_FILE)
+    #     data.sort(key=lambda x: x['date'])
+    #     date = datetime.now()
+    #     params = msg.text.split()[1:]
+    #     if len(params) == 1:
+    #         try:
+    #             date = datetime.strptime(params[0], "%d.%m.%y")
+    #         except:
+    #             bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
+    #     nearest_shifts = get_nearest_shifts(data, date)
+    #     if nearest_shifts == "":
+    #         nearest_shifts = _NO_SHIFTS_DATA
+    #     bot.send_message(msg.chat.id, nearest_shifts, parse_mode="HTML")
+    #
+    # @bot.message_handler(commands=['swap'])
+    # def swap(msg):
+    #     data = get_shifts_data(SHIFTS_FILE)
+    #     date1, date2 = None, None
+    #     params = msg.text.split()[1:]
+    #     if len(params) == 2:
+    #         try:
+    #             date1 = datetime.strptime(params[0], "%d.%m.%y")
+    #             date2 = datetime.strptime(params[1], "%d.%m.%y")
+    #         except:
+    #             bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
+    #     else:
+    #         bot.send_message(msg.chat.id, _DATES_MISSING_MSG)
+    #     if date1 and date2:
+    #         data = swap_shifts(data, date1, date2)
+    #         shifts_to_output = get_nearest_shifts(data, date1)
+    #         put_shifts_data(data)
+    #         bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
+    #
+    # @bot.message_handler(commands=['add'])
+    # def add_shifts(msg):
+    #     data = get_shifts_data(SHIFTS_FILE)
+    #     params = msg.text.split()[1:]
+    #     if len(params) == 3:
+    #         try:
+    #             date = datetime.strptime(params[0], "%d.%m.%y")
+    #         except:
+    #             bot.send_message(msg.chat.id, _WRONG_INPUT_MSG)
+    #         record = {}
+    #         record['date'] = date
+    #         record['watcher'] = params[1] + ' ' + params[2]
+    #         data.append(record)
+    #         shifts_to_output = get_nearest_shifts(data, date)
+    #         put_shifts_data(data)
+    #         bot.send_message(msg.chat.id, shifts_to_output, parse_mode="HTML")
+    #     else:
+    #         bot.send_message(msg.chat.id, _WRONG_ADD_INPUT_MSG)
 
     @bot.message_handler(commands=['get'])
     def send_shops(msg):
@@ -349,17 +364,23 @@ Hello friend! Just paste the text to convert it to config message or type /help 
             shops = r_scrap.get_db_shops(param)
             shops_msg = compose_shops_msg(shops)
             bot.send_message(msg.chat.id, shops_msg)
+        else:
+            bot.send_message(msg.chat.id, _PARAM_MISSING_MSG)
 
     @bot.message_handler(commands=['upd'])
     def upd_shops(msg):
         if r_scrap.update_db_shops():
-            bot.send_message(msg.chat.id, 'Shops data updated')
+            bot.send_message(msg.chat.id, _UPD_OK_MSG)
+        else:
+            bot.send_message(msg.chat.id, _FAILED_MSG)
 
     @bot.message_handler(commands=['eth'])
     def get_eth(msg):
-        answer = get_ETH_price()
+        answer = get_eth_price()
         if answer:
-            bot.send_message(msg.chat.id, answer)    \
+            bot.send_message(msg.chat.id, answer)
+        else:
+            bot.send_message(msg.chat.id, _FAILED_MSG)
 
     @bot.message_handler(commands=['weather'])
     def get_eth(msg):
@@ -370,8 +391,8 @@ Hello friend! Just paste the text to convert it to config message or type /help 
         answer = get_weather(param)
         if answer:
             bot.send_message(msg.chat.id, answer)
-
-
+        else:
+            bot.send_message(msg.chat.id, _FAILED_MSG)
 
     @bot.message_handler(content_types=['text'])
     def process_text(msg):
@@ -395,32 +416,19 @@ class MissingEnvVar(Exception):
     pass
 
 
-def check_tokens():
-    """Check if env variables loaded"""
-    env_vars = [BOT_TOKEN, AUTHOR_CHAT_ID]
-    vars_availability = [False if not var else True for var in env_vars]
-    logger.debug(vars_availability)
-    if not all(vars_availability):
-        return False
-    return True
-
-
 def scheduled_check(bot):
     _START_LOG_MSG = 'Start monitoring'
     _NO_UPDATES_LOG_MSG = 'Resource checked, there is no updates'
 
-    # now = datetime.datetime.now()
-    # hour = now.hour
-    # print('hour:', hour)
     logger.info(_START_LOG_MSG)
 
     while True:
-        # if hour in [22, 24]:
+        # do some logic for check shops statements
         msg = _NO_UPDATES_LOG_MSG
         logger.info(msg)
         # bot.send_message(AUTHOR_CHAT_ID, msg)
 
-        time.sleep(30)
+        time.sleep(300)
 
 
 def main():
@@ -428,10 +436,10 @@ def main():
     _MISSING_VARS_LOG_MSG = 'Missing environment variables'
 
     set_logging_config()
-    if not check_tokens():
+    if not check_env_vars():
         logger.critical(_MISSING_VARS_LOG_MSG)
         raise MissingEnvVar(_MISSING_VARS_LOG_MSG)
-    logger.debug(BOT_TOKEN)
+
     bot = telebot.TeleBot(BOT_TOKEN)
     Thread(target=scheduled_check, args=(bot,)).start()
     run_handlers(bot)
