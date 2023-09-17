@@ -53,91 +53,83 @@ def convert_page_to_shops(source):
     return shops
 
 
-def upsert_db_shops(data):
+def query_the_db(db, query, param=None):
+    sqlite_connection = None
     try:
-        sqlite_connection = sqlite3.connect(SHOPS_DB)
+        print("Open SQLite connection")
+        sqlite_connection = sqlite3.connect(db)
         cursor = sqlite_connection.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS shops(
-                code INTEGER PRIMARY KEY,
-                ip text NOT NULL,
-                city text NOT NULL,
-                address text NOT NULL,
-                email text NOT NULL,
-                tel INTEGER NOT NULL,
-                sa text NOT NULL,
-                bigboss text,
-                hugeboss text,
-                astronomicboss text
-            );
-        ''')
-
-        for shop in data:
-            sql_query = f'''
-    INSERT INTO shops (code, ip, city, address, email, tel, sa, bigboss, 
-                       hugeboss, astronomicboss)
-    VALUES {tuple(shop.values())}
-    ON CONFLICT(code) DO UPDATE SET
-        code = ?, ip = ?, city = ?, address = ?, email = ?, tel = ?, sa = ?, 
-        bigboss = ?, hugeboss = ?, astronomicboss = ?
-'''
-            cursor.execute(sql_query, list(shop.values()))
-        return True
-
+        if param:
+            cursor.execute(query, param)
+        else:
+            cursor.execute(query)
+        return cursor.fetchall()
     except sqlite3.Error as error:
         print("SQLite connection error", error)
     finally:
-        if (sqlite_connection):
+        if sqlite_connection:
             sqlite_connection.commit()
             sqlite_connection.close()
             print("SQLite connection closed")
     return False
 
 
+def init_db_shop():
+    query = '''\
+CREATE TABLE IF NOT EXISTS shops(
+    code INTEGER PRIMARY KEY,
+    ip text NOT NULL,
+    city text NOT NULL,
+    address text NOT NULL,
+    email text NOT NULL,
+    tel INTEGER NOT NULL,
+    sa text NOT NULL,
+    bigboss text,
+    hugeboss text,
+    astronomicboss text
+);'''
+    return query_the_db(SHOPS_DB, query)
+
+
+def upsert_db_shops(data):
+    init_db_shop()
+    for shop in data:
+        query = f'''
+INSERT INTO shops (code, ip, city, address, email, tel, sa, bigboss, 
+                   hugeboss, astronomicboss)
+VALUES {tuple(shop.values())}
+ON CONFLICT(code) DO UPDATE SET
+    code = ?, ip = ?, city = ?, address = ?, email = ?, tel = ?, sa = ?, 
+    bigboss = ?, hugeboss = ?, astronomicboss = ?
+'''
+        query_the_db(SHOPS_DB, query, list(shop.values()))
+    return get_db_shops('Lite')
+
+
 def get_db_shops(param):
-    try:
-        sqlite_connection = sqlite3.connect(SHOPS_DB)
-        cursor = sqlite_connection.cursor()
-        cursor.execute(f'''\
-SELECT * 
-FROM users
-WHERE name = "{param}" OR nick = "{param}"
-''')
-        user = cursor.fetchone()
-        if not user:
-            print('user wasnt finded')
-            try:
-                code_shop = int(param)
-                cursor.execute(f'''\
+    if param.isdigit():
+        code_shop = int(param)
+        query = f'''\
 SELECT *
 FROM shops
 WHERE code = {code_shop}
-            ''')
-                result = []
-                for res in cursor:
-                    result.append(res)
-                return result
-            except ValueError:
-                return None
-        user_name = user[1]
-        cursor.execute(f'''\
+'''
+        return query_the_db(SHOPS_DB, query)
+    else:
+        query = f'''\
+SELECT *
+FROM users
+WHERE name = "{param}" OR nick = "{param}"
+'''
+        result = query_the_db(SHOPS_DB, query)
+        if result:
+            user_name = result[0][1]
+            query = f'''\
 SELECT *
 FROM shops
 WHERE sa = "{user_name}"
-    ''')
-        result = []
-        for res in cursor:
-            result.append(res)
-        return result
-    except sqlite3.Error as error:
-        print("SQLite connection error", error)
-    finally:
-        if (sqlite_connection):
-            sqlite_connection.commit()
-            sqlite_connection.close()
-            print("SQLite connection closed")
-
-    return '[Shops list]'
+'''
+            return query_the_db(SHOPS_DB, query)
 
 
 def update_db_shops():
@@ -156,49 +148,24 @@ def update_db_shops():
 
 
 def init_db_user():
-    try:
-        sqlite_connection = sqlite3.connect(SHOPS_DB)
-        cursor = sqlite_connection.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users(
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE,
-                nick TEXT NOT NULL UNIQUE,
-                url_key TEXT NOT NULL,
-                cookie TEXT NOT NULL
-            );
-        ''')
-        return True
-    except sqlite3.Error as error:
-        print("SQLite connection error", error)
-    finally:
-        if (sqlite_connection):
-            sqlite_connection.commit()
-            sqlite_connection.close()
-            print("SQLite connection closed")
-    return False
+    query = '''
+CREATE TABLE IF NOT EXISTS users(
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    nick TEXT NOT NULL UNIQUE,
+    url_key TEXT NOT NULL,
+    cookie TEXT NOT NULL
+);
+        '''
+    return query_the_db(SHOPS_DB, query)
 
 
 def get_db_users():
-    try:
-        sqlite_connection = sqlite3.connect(SHOPS_DB)
-        cursor = sqlite_connection.cursor()
-        cursor.execute('''
+    query = '''
 SELECT *
 FROM users
-            ''')
-        users = []
-        for res in cursor:
-            users.append(res)
-        return users
-    except sqlite3.Error as error:
-        print("SQLite connection error", error)
-    finally:
-        if (sqlite_connection):
-            sqlite_connection.commit()
-            sqlite_connection.close()
-            print("SQLite connection closed")
-    return False
+            '''
+    return query_the_db(SHOPS_DB, query)
 
 
 def upsert_db_users(users):
@@ -206,32 +173,21 @@ def upsert_db_users(users):
     Input: users list of tuples
     Call example: upsert_db_users([('id', 'name', 'nick', '', ''), ...])
     """
-    try:
-        sqlite_connection = sqlite3.connect(SHOPS_DB)
-        cursor = sqlite_connection.cursor()
-        for user in users:
-            sql_query = f'''
-            INSERT INTO users (id, name, nick, url_key, cookie)
-            VALUES {user}
-            ON CONFLICT(id) DO UPDATE SET
-                id = ?, name = ?, nick = ?, url_key = ?, cookie = ?
+    for user in users:
+        query = f'''
+INSERT INTO users (id, name, nick, url_key, cookie)
+VALUES {user}
+ON CONFLICT(id) DO UPDATE SET
+    id = ?, name = ?, nick = ?, url_key = ?, cookie = ?
         '''
-            cursor.execute(sql_query, user)
-        return True
-    except sqlite3.Error as error:
-        print("SQLite connection error", error)
-    finally:
-        if (sqlite_connection):
-            sqlite_connection.commit()
-            sqlite_connection.close()
-            print("SQLite connection closed")
-    return False
+        query_the_db(SHOPS_DB, query, user)
+    return get_db_users()
 
 
 if __name__ == '__main__':
     # print(upsert_db_users(users))
-    print(get_db_users())
-    # print(update_db_shops())
+    # print(get_db_users())
+    print(update_db_shops())
 
     # print(get_shops_data(5421))
 
